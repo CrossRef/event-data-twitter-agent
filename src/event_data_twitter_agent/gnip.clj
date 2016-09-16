@@ -34,8 +34,8 @@
   {:tweet-url (get parsed "link")
    :author (get-in parsed ["actor" "link"])
    
-   :original-tweet-url (get-in parsed ["object" "actor" "link"])
-   :original-tweet-author (get-in parsed ["object" "link"])
+   :original-tweet-url (get-in parsed ["object" "link"])
+   :original-tweet-author (get-in parsed ["object" "actor" "link"])
    
    :posted-time posted-time
    :body (get parsed "body")

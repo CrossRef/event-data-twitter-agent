@@ -16,7 +16,7 @@
            [java.util UUID])
   (:gen-class))
 
-(def version "0.1.0")
+(def version "0.1.1")
 (def source-token "45a1ef76-4f43-4cdc-9ba8-5a6ad01cc231")
 
 (def gnip-input-buffer (buffer 2048))
@@ -74,7 +74,7 @@
                              :working {:matching-rules (:matching-rules input-event)
                                        :matching-dois doi-matches
                                        :match-attempts doi-attempts
-                                       :original-author (:original-author input-event)
+                                       :original-tweet-author (:original-tweet-author input-event)
                                        :original-tweet-url (:original-tweet-url input-event)}
                              :deposits deposits}]
         
