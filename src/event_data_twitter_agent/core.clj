@@ -16,7 +16,7 @@
            [java.util UUID])
   (:gen-class))
 
-(def version "0.1.1")
+(def version "0.1.2")
 (def source-token "45a1ef76-4f43-4cdc-9ba8-5a6ad01cc231")
 
 (def gnip-input-buffer (buffer 2048))
@@ -69,7 +69,7 @@
                               doi-matches)
             
             evidence-record {:artifacts [@current-domain-list-artifact-url @current-doi-prefix-list-artifact-url]
-                             :input (select-keys [:tweet-url :author :posted-time :body :urls :matching-rules] input-event)
+                             :input (select-keys input-event [:tweet-url :author :posted-time :body :urls :matching-rules])
                              :agent {:name "twitter" :version version}
                              :working {:matching-rules (:matching-rules input-event)
                                        :matching-dois doi-matches
