@@ -12,11 +12,10 @@
             [clj-time.coerce :as coerce]
             [clj-time.core :as clj-time]
             [throttler.core :refer [throttle-fn]])
-  (:import [java.util.logging Level Logger]
-           [java.util UUID])
+  (:import [java.util UUID])
   (:gen-class))
 
-(def version "0.1.2")
+(def version "0.1.3")
 (def source-token "45a1ef76-4f43-4cdc-9ba8-5a6ad01cc231")
 
 (def gnip-input-buffer (buffer 2048))
@@ -86,27 +85,10 @@
       
       (recur (<!! gnip-input-stream)))))
 
-
-
-
 (defn report-queue-sizes
   "Periodically report size of queues."
   [artifacts callback]
-  (prn "GNIP " (count gnip-input-buffer))
-  (c/send-heartbeat "twitter-agent/input/input-queue" (count gnip-input-buffer))
-  ; (reset! heartbeat-recent-changes-stream 0)
-  ; (c/send-heartbeat "wikipedia-agent/process/process-input" @heartbeat-process-input)
-  ; (reset! heartbeat-process-input 0)
-  
-  ; (c/send-heartbeat "wikipedia-agent/restbase-input/query" @process/heartbeat-restbase)
-  ; (reset! process/heartbeat-restbase 0)
-  
-  ; (c/send-heartbeat "wikipedia-agent/restbase-input/ok" @process/heartbeat-restbase-ok)
-  ; (reset! process/heartbeat-restbase-ok 0)
-  
-  ; (c/send-heartbeat "wikipedia-agent/restbase-input/error" @process/heartbeat-restbase-error)
-  ; (reset! process/heartbeat-restbase-error 0)
-  )
+  (c/send-heartbeat "twitter-agent/input/input-queue" (count gnip-input-buffer)))
   
 
 ; The `update-rules` artifact fetches the most recent rules, updates Gnip and then saves the artifact info in the `domain-list-artifact` atom.

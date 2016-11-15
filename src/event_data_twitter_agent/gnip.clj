@@ -10,8 +10,9 @@
   (:import [java.util.concurrent LinkedBlockingQueue]
            [com.twitter.hbc.httpclient.auth BasicAuth]
            [com.twitter.hbc ClientBuilder]
-           [com.twitter.hbc.core Constants]
+           ; [com.twitter.hbc.core Constants HttpConstants]
            [com.twitter.hbc.core.processor LineStringProcessor]
+           ; [com.twitter.hbc.core.endpoint RealTimeEnterpriseStreamingEndpoint DefaultStreamingEndpoint]
            [com.twitter.hbc.core.endpoint RealTimeEnterpriseStreamingEndpoint])
   (:require [clj-time.coerce :as clj-time-coerce])
   (:require [config.core :refer [env]])
@@ -51,7 +52,7 @@
   [event-channel]
   (let [q (new LinkedBlockingQueue 1000) 
         client (-> (new ClientBuilder)
-                   (.hosts Constants/ENTERPRISE_STREAM_HOST)
+                   (.hosts "https://gnip-stream.twitter.com")
                    (.endpoint (new RealTimeEnterpriseStreamingEndpoint "Crossref" "track" "prod"))
                    (.authentication (new BasicAuth (:gnip-username env) (:gnip-password env)))
                    (.processor (new com.twitter.hbc.core.processor.LineStringProcessor q))
@@ -64,7 +65,7 @@
           ; Block on the take.
           (let [event (.take q)
                 parsed (parse-entry event)]
-            
+
             (c/send-heartbeat "twitter-agent/input/input-stream-event" 1)
             (>!! event-channel parsed))
           (recur))))
