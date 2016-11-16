@@ -42,7 +42,11 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
-import sun.misc.BASE64Encoder;
+// TODO Added jwass@crossref.org 2016-11-16
+import java.util.Base64;
+import java.nio.charset.StandardCharsets;
+
+// import sun.misc.BASE64Encoder;
 
 /**
  * Thread-safe.
@@ -140,12 +144,15 @@ class ClientBase implements Runnable {
           }
           auth.signRequest(request, postContent);
           
+          // TODO Added jwass@crossref.org 2016-11-16
+          byte[] authToken = Base64.getEncoder().encode((auth.getUsername() + ":" + auth.getPassword()).getBytes(StandardCharsets.UTF_8));
+          String authValue = "Basic " + new String(authToken, StandardCharsets.UTF_8);
+
           //PTv2 update: Explicitly adding Authorization header with Base64 encoded username and password. 
-          BASE64Encoder encoder = new BASE64Encoder();
-          String authToken =  auth.getUsername() + ":" + auth.getPassword();
-          String authValue = "Basic " + encoder.encode(authToken.getBytes());  
+          // BASE64Encoder encoder = new BASE64Encoder();
+          // String authToken =  auth.getUsername() + ":" + auth.getPassword();
+          // String authValue = "Basic " + encoder.encode(authToken.getBytes());  
           request.addHeader("Authorization", authValue);
-          
           
           Connection conn = new Connection(client, processor);
           StatusLine status = establishConnection(conn, request);
