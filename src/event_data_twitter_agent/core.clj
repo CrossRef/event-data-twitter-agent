@@ -15,7 +15,7 @@
   (:import [java.util UUID])
   (:gen-class))
 
-(def version "0.1.3")
+(def version "0.1.4")
 (def source-token "45a1ef76-4f43-4cdc-9ba8-5a6ad01cc231")
 
 (def gnip-input-buffer (buffer 2048))
@@ -112,8 +112,7 @@
              {:name "process-stream"
               :fun process-stream
               :threads 100
-              :required-artifacts []}
-             ]
+              :required-artifacts []}]
    :build-evidence (fn [input] nil)
    :process-evidence (fn [evidence] nil)})
 

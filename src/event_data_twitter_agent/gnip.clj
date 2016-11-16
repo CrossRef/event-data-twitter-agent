@@ -10,10 +10,10 @@
   (:import [java.util.concurrent LinkedBlockingQueue]
            [com.twitter.hbc.httpclient.auth BasicAuth]
            [com.twitter.hbc ClientBuilder]
-           ; [com.twitter.hbc.core Constants HttpConstants]
+           [com.twitter.hbc.core Constants HttpConstants]
            [com.twitter.hbc.core.processor LineStringProcessor]
-           ; [com.twitter.hbc.core.endpoint RealTimeEnterpriseStreamingEndpoint DefaultStreamingEndpoint]
-           [com.twitter.hbc.core.endpoint RealTimeEnterpriseStreamingEndpoint])
+           [com.twitter.hbc.core.endpoint RealTimeEnterpriseStreamingEndpoint_v2]
+           [org.crossref.eventdata.twitter CustomUrlStreamingEndpoint])
   (:require [clj-time.coerce :as clj-time-coerce])
   (:require [config.core :refer [env]])
   (:gen-class))
@@ -51,9 +51,10 @@
   Blocks forever."
   [event-channel]
   (let [q (new LinkedBlockingQueue 1000) 
-        client (-> (new ClientBuilder)
-                   (.hosts "https://gnip-stream.twitter.com")
-                   (.endpoint (new RealTimeEnterpriseStreamingEndpoint "Crossref" "track" "prod"))
+        client 
+        (-> (new ClientBuilder)
+                   (.hosts Constants/ENTERPRISE_STREAM_HOST_v2)
+                   (.endpoint (new CustomUrlStreamingEndpoint (:powertrack-endpoint env)))
                    (.authentication (new BasicAuth (:gnip-username env) (:gnip-password env)))
                    (.processor (new com.twitter.hbc.core.processor.LineStringProcessor q))
                    (.build))]

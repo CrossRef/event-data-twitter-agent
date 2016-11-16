@@ -4,6 +4,8 @@ Crossref Event Data Twitter agent. Connects to Gnip to monitor Twitter for event
 
 Under development September 2016.
 
+Contains a snapshot of a [fork of the Twitter HoseBird Client](https://github.com/jimmoffitt/hbc) because Twitter's version isn't compatible with their own PowerTrack 2.0 service. Pending Twitter deploying HBC on Maven.
+
 ## Config
 
  - `:status-service-base`
