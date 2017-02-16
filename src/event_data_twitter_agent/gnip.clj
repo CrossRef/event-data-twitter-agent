@@ -1,56 +1,96 @@
 (ns event-data-twitter-agent.gnip
   "Handle Gnip's stream."
-  (:require [org.crossref.event-data-agent-framework.core :as c]
-            [org.crossref.event-data-agent-framework.util :as framework-util])
-  (:require [clojure.set :as set]
-            [clojure.tools.logging :as l]
-            [clojure.core.async :refer [>!!]])
-  (:require [org.httpkit.client :as http])
-  (:require [clojure.data.json :as json])
+  (:require [clojure.core.async :refer [go-loop thread buffer chan <!! >!! >! <!]]
+            [clojure.set :as set]
+            [clojure.tools.logging :as log]
+            [clojure.core.async :refer [>!!]]
+            [org.httpkit.client :as http]
+            [clojure.data.json :as json]
+            [clj-time.coerce :as clj-time-coerce]
+            [config.core :refer [env]]
+            [event-data-common.status :as status])
   (:import [java.util.concurrent LinkedBlockingQueue]
            [com.twitter.hbc.httpclient.auth BasicAuth]
            [com.twitter.hbc ClientBuilder]
            [com.twitter.hbc.core Constants HttpConstants]
            [com.twitter.hbc.core.processor LineStringProcessor]
            [com.twitter.hbc.core.endpoint RealTimeEnterpriseStreamingEndpoint_v2]
-           [org.crossref.eventdata.twitter CustomUrlStreamingEndpoint])
-  (:require [clj-time.coerce :as clj-time-coerce])
-  (:require [config.core :refer [env]])
+           [org.crossref.eventdata.twitter CustomUrlStreamingEndpoint]
+           [org.apache.commons.codec.digest DigestUtils])
   (:gen-class))
 
-(defn- parse-entry
-  "Parse a tweet input (JSON String) into a standard format. A single map with keys:
-   - tweetId - string id
-   - postedTime - string ISO8601 Z directly from twitter
-   - postedDate - string ISO8601 Z truncated to day
-   - body - body text
-   - urls - list of URLs
-   - matchingRules - list or Gnip rules that resulted in the match, for diagnostic purposes"
-  [input-string]
-  (when (.contains input-string "RT") (locking *out* (prn ">>>>>>RT " input-string)))
-  (let [parsed (json/read-str input-string)
-        posted-time (get-in parsed ["postedTime"])
-        urls (map #(get % "expanded_url") (get-in parsed ["gnip" "urls"]))
-        matching-rules (map #(get % "value") (get-in parsed ["gnip" "matching_rules"]))]
-  {:tweet-url (get parsed "link")
-   :author (get-in parsed ["actor" "link"])
-   
-   :original-tweet-url (get-in parsed ["object" "link"])
-   :original-tweet-author (get-in parsed ["object" "actor" "link"])
-   
-   :posted-time posted-time
-   :body (get parsed "body")
-   :urls urls
-   :matching-rules matching-rules}))
+(def source-id "twitter")
+(def source-token "45a1ef76-4f43-4cdc-9ba8-5a6ad01cc231")
 
-(defn run-stream
+(def unknown-url "http://id.eventdata.crossref.org/unknown")
+
+(defn tweet-id-from-url 
+  [url]
+  (re-find #"[\d]+$" url))
+
+(defn parse-entry
+  "Parse a tweet input (JSON String) into an Action.
+   On input error log and return nil."
+  [input-string]
+  (let [parsed (json/read-str input-string :key-fn keyword)]
+
+    (if (:error parsed)
+      (do
+        (log/error "Gnip error:" (-> parsed :error :message)
+        nil))
+      (let [posted-time (:postedTime parsed)
+        
+            ; URL as posted.
+            expanded-urls (->> parsed :gnip :urls (map :expanded_url))
+
+            ; URLs as expanded by Gnip.
+            original-urls (->> parsed :gnip :urls (map :url))
+
+            urls (set (concat expanded-urls original-urls))
+
+            url (:link parsed unknown-url)
+            matching-rules (->> parsed :gnip :matching_rules (map :id))
+            
+            plaintext-observations [{:type "plain-text"
+                                     :input-content (:body parsed)
+                                     :sensitive true}]
+            url-observations (map (fn [url]
+                                    {:type "url"
+                                     :sensitive false
+                                     :input-url url}) urls)
+        
+            title (str "Tweet " (tweet-id-from-url url))]
+
+       {:id (DigestUtils/sha1Hex ^String url)
+        :url url
+        :occurred-at posted-time
+        :extra {:gnip-matching-rules matching-rules}
+        :subj {:title title
+               :issued posted-time
+               :author {:url (-> parsed :actor :link)}
+               :original-tweet-url (-> parsed :object :link)
+               :original-tweet-author (-> parsed :object :actor :link)}
+        :relation-type-id "discusses"
+        :observations (concat plaintext-observations
+                              url-observations)}))))
+
+; Nice big buffer, as they're required for transducers.
+(def action-input-buffer 1000000)
+
+; Bunch requests up into chunks of this size.
+(def action-chunk-size 1)
+
+; A chan that partitions inputs into large chunks.
+(def action-chan (delay (chan action-input-buffer (partition-all action-chunk-size))))
+
+(defn run-ingest
   "Run the stream ingestion.
-  This pushes events onto two lists:
-   - 'input-queue' - a queue for processing
-   - 'input-log-YYYY-MM-DD' - the log of inputs. This is written to a log file.
-  Blocks forever."
-  [event-channel]
-  (let [q (new LinkedBlockingQueue 1000) 
+   Blocks forever."
+  [artifacts input-package-channel]
+  ; This will send events onto the action-chan, not onto the Agent Framework-provided input-package-channel.
+  ; Both args ignored.
+  (let [q (new LinkedBlockingQueue 1000)
+        c @action-chan
         client 
         (-> (new ClientBuilder)
                    (.hosts Constants/ENTERPRISE_STREAM_HOST_v2)
@@ -58,88 +98,34 @@
                    (.authentication (new BasicAuth (:gnip-username env) (:gnip-password env)))
                    (.processor (new com.twitter.hbc.core.processor.LineStringProcessor q))
                    (.build))]
-        (l/info "Connecting to Gnip...")
+
+        (log/info "Connecting to Gnip...")
         (.connect client)
-        (l/info "Connected to Gnip.")
+        (log/info "Connected to Gnip.")
 
         (loop []
-          ; Block on the take.
-          (let [event (.take q)
-                parsed (parse-entry event)]
-
-            (c/send-heartbeat "twitter-agent/input/input-stream-event" 1)
-            (>!! event-channel parsed))
+            ; Block on the take.
+            (let [event (.take q)]
+              (try
+                ; parsed can return nil if it recognised and 
+                (when-let [parsed (parse-entry event)]
+                  (>!! c parsed))
+                (catch Exception e
+                    (log/error (.printStackTrace e))
+                    (log/error "Exception parsing Gnip input" event))))
           (recur))))
 
-(defn- format-gnip-ruleset
-  "Format a set of string rules into a JSON object."
-  [rule-seq]
-  (let [structure {"rules" (map #(hash-map "value" %) rule-seq)}]
-    (json/write-str structure)))
-
-(defn- parse-gnip-ruleset
-  "Parse the Gnip ruleset into a seq of rule string."
-  [json-string]
-  (let [structure (json/read-str json-string)
-        rules (get structure "rules")]
-      (map #(get % "value") rules)))
-
-(defn- fetch-rules-in-play
-  "Fetch the current rule set from Gnip."
-  []
-  (let [fetched @(http/get (:gnip-rules-url env) {:basic-auth [(:gnip-username env) (:gnip-password env)]})
-        rules (-> fetched :body parse-gnip-ruleset)]
-    (set rules)))
-
-(defn- create-rule-from-domain
-  "Create a Gnip rule from a full domain, e.g. www.xyz.com, if valid or nil."
-  [full-domain]
-  ; Basic sense check.
-  (when (> (.length full-domain) 3)
-    (str "url_contains:\"//" full-domain "/\"")))
-
-(defn- create-rule-from-prefix
-  "Create a Gnip rule from a DOI prefix, e.g. 10.5555"
-  [prefix]
-  (str "contains:\"" prefix "/\""))
-
-(defn- add-rules
-  "Add rules to Gnip."
-  [rules]
-  (l/info "Post rules" rules)
-  (let [result @(http/post (:gnip-rules-url env) {:body (format-gnip-ruleset rules) :basic-auth [(:gnip-username env) (:gnip-password env)]})]
-    (when-not (#{200 201} (:status result))
-      (l/fatal "Failed to add rules" result))))
-
-(defn- remove-rules
-  "Add rules to Gnip."
-  [rules]
-  (l/info "Remove rules" rules)
-  (let [result @(http/delete (:gnip-rules-url env) {:body (format-gnip-ruleset rules) :basic-auth [(:gnip-username env) (:gnip-password env)]})]
-    (when-not (#{200 201} (:status result))
-      (l/fatal "Failed to delete rules" result))))
-
-
-(defn update-all-files
-  "Perform complete update cycle of Gnip rules.
-  Do this by fetching the list of domains and prefixes from the 'DOI Destinations' service, creating a rule-set then diffing with what's already in Gnip."
-  [doi-prefix-list-file domain-list-file]
-  (let [current-rule-set (fetch-rules-in-play)
-        
-        doi-prefix-list (framework-util/text-file-to-set doi-prefix-list-file)
-        domain-list (framework-util/text-file-to-set domain-list-file)
-        doi-prefix-rules (map create-rule-from-prefix doi-prefix-list)
-        domain-rules (map create-rule-from-domain domain-list)
-        rules (set (concat doi-prefix-rules domain-rules))
-        
-        rules-to-add (clojure.set/difference rules current-rule-set)
-        rules-to-remove (clojure.set/difference current-rule-set rules)]
-    (l/info "Current rules " (count current-rule-set) ", up to date rules " (count rules))
-    (l/info "Add" (count rules-to-add) ", remove " (count rules-to-remove))
-
-    (c/send-heartbeat "twitter-agent/input/add-rules" (count rules-to-add))
-    (c/send-heartbeat "twitter-agent/input/remove-rules" (count rules-to-remove))
-    
-    (add-rules rules-to-add)
-    (remove-rules rules-to-remove)))
-
+(defn run-send
+  "Take chunks of Actions from the action-chan, assemble into Percolator Input Packages, put them on the input-package-channel.
+   Blocks forever."
+  [artifacts input-package-channel]
+  ; Take chunks of inputs, a few tweets per input bundle.
+  ; Gather then into a Page of actions.
+  (let [c @action-chan]
+    (loop [actions (<!! c)]
+      (let [payload {:pages [{:actions actions}]
+                     :source-token source-token
+                     :source-id source-id}]
+        (status/send! "twitter-agent" "send" "input-package" (count actions))
+        (>!! input-package-channel payload))
+      (recur (<!! c)))))

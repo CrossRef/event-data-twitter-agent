@@ -9,3 +9,6 @@ pom.xml.asc
 /.nrepl-port
 config
 .DS_Store
+.env
+.m2_cache
+

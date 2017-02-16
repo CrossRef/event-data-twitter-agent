@@ -1,0 +1,17 @@
+version: '2'
+services:
+  test:
+    build: .
+    volumes:
+     - .:/usr/src/app
+     - ./.m2-cache:/root/.m2
+    environment:
+     - JWT_TOKEN=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0d2l0dGVyIn0.86J0uTAIC7Pn4I7WGdPxNBn2L5hrgGQ_U5DH8wEeutI
+     - POWERTRACK_ENDPOINT=${POWERTRACK_ENDPOINT}
+     - GNIP_USERNAME=${GNIP_USERNAME}
+     - GNIP_PASSWORD=${GNIP_PASSWORD}
+     - GNIP_RULES_URL=
+     - PERCOLATOR_URL_BASE=http://localhost:8006
+     - STATUS_URL_BASE=http://localhost:8003
+    command: "lein test :unit"
+
