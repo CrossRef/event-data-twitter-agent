@@ -12,11 +12,10 @@
   (:import [java.util UUID])
   (:gen-class))
 
-(def version "0.1.7")
 
 (def agent-definition
   {:agent-name "twitter-agent"
-   :version version
+   :version gnip/version
    :schedule []
    :runners [{:name "ingest"
               :fun gnip/run-ingest

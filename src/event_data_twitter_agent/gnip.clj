@@ -24,6 +24,8 @@
 
 (def unknown-url "http://id.eventdata.crossref.org/unknown")
 
+(def version "0.1.9")
+
 (defn tweet-id-from-url 
   [url]
   (re-find #"[\d]+$" url))
@@ -51,7 +53,7 @@
             url (:link parsed unknown-url)
             matching-rules (->> parsed :gnip :matching_rules (map :id))
             
-            plaintext-observations [{:type "plain-text"
+            plaintext-observations [{:type "plaintext"
                                      :input-content (:body parsed)
                                      :sensitive true}]
             url-observations (map (fn [url]
@@ -78,7 +80,7 @@
 (def action-input-buffer 1000000)
 
 ; Bunch requests up into chunks of this size.
-(def action-chunk-size 1)
+(def action-chunk-size 100)
 
 ; A chan that partitions inputs into large chunks.
 (def action-chan (delay (chan action-input-buffer (partition-all action-chunk-size))))
@@ -124,6 +126,7 @@
   (let [c @action-chan]
     (loop [actions (<!! c)]
       (let [payload {:pages [{:actions actions}]
+                     :agent {:version version}
                      :source-token source-token
                      :source-id source-id}]
         (status/send! "twitter-agent" "send" "input-package" (count actions))

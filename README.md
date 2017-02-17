@@ -27,5 +27,4 @@ To run as an agent, `lein run`. To update the rules in Gnip, which should be one
  - `STATUS_SERVICE_BASE`
  - `GNIP_USERNAME`
  - `GNIP_PASSWORD`
- - `GNIP_RULES_URL` (for upate-rules only)
  - `ARTIFACT_BASE`, e.g. https://artifact.eventdata.crossref.org
