@@ -42,16 +42,17 @@
         nil))
       (let [posted-time (:postedTime parsed)
         
-            ; URL as posted.
-            expanded-urls (->> parsed :gnip :urls (map :expanded_url))
+            ; URL as posted (removing nils).
+            expanded-urls (->> parsed :gnip :urls (keep :expanded_url))
 
-            ; URLs as expanded by Gnip.
-            original-urls (->> parsed :gnip :urls (map :url))
+            ; URLs as expanded by Gnip (removing nils).
+            original-urls (->> parsed :gnip :urls (keep :url))
 
             urls (set (concat expanded-urls original-urls))
 
             url (:link parsed unknown-url)
-            matching-rules (->> parsed :gnip :matching_rules (map :id))
+
+            matching-rules (->> parsed :gnip :matching_rules (keep :id))
             
             plaintext-observations [{:type "plaintext"
                                      :input-content (:body parsed)

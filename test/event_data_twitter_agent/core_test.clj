@@ -42,7 +42,7 @@
                :relation-type-id "discusses"
                :observations
                ; Plain text of tweet should be extracted BUT should have the sensitive flag set.
-               [{:type "plain-text" :input-content "THIS IS THE BODY TEXT" :sensitive true}
+               [{:type "plaintext" :input-content "THIS IS THE BODY TEXT" :sensitive true}
                 ; All URLs, including both the original and the expanded, should have 
                 {:type "url" :sensitive false :input-url "http://examplelong.com/1"}
                 {:type "url" :sensitive false :input-url "http://exampleshort.com/1"}]})))))
@@ -57,3 +57,15 @@
   (testing "parse-entry can accept Gnip entry"
     (let [input "{\"error\":{\"message\":\"This stream is currently at the maximum allowed connection limit\",\"sent\":\"2017-02-14T12:37:11+00:00\",\"transactionId\":\"00ac7eab00fa8ed0\"}}"]
       (is (nil? (gnip/parse-entry input)) "Exception should not be raised on expected error, instead return nil."))))
+
+(deftest parse-empty-urls
+  (testing "If empty URLs are passed in, no nil observations are created.")
+    (let [input-missing-urls "{\"id\":\"tag:search.twitter.com,2005:1111111111\",\"objectType\":\"activity\",\"verb\":\"post\",\"postedTime\":\"2017-02-13T18:04:47.000Z\",\"generator\":{\"displayName\":\"Twitter Web Client\",\"link\":\"http:\\/\\/twitter.com\"},\"provider\":{\"objectType\":\"service\",\"displayName\":\"Twitter\",\"link\":\"http:\\/\\/www.twitter.com\"},\"link\":\"http:\\/\\/twitter.com\\/2222222222\\/statuses\\/1111111111\",\"body\":\"THIS IS THE BODY TEXT\",\"actor\":{\"objectType\":\"person\",\"id\":\"id:twitter.com:3333333333\",\"link\":\"http:\\/\\/www.twitter.com\\/2222222222\",\"displayName\":\"XXXXX\",\"postedTime\":\"2015-11-24T19:16:56.006Z\",\"image\":\"http://example.com/image.png\",\"summary\":null,\"friendsCount\":999,\"followersCount\":999,\"listedCount\":999,\"statusesCount\":999,\"twitterTimeZone\":\"Pacific Time (US & Canada)\",\"verified\":false,\"utcOffset\":\"-28800\",\"preferredUsername\":\"2222222222\",\"languages\":[\"en\"],\"links\":[{\"href\":null,\"rel\":\"me\"}],\"favoritesCount\":999},\"object\":{\"objectType\":\"note\",\"id\":\"object:search.twitter.com,2005:1111111111\",\"summary\":\"THIS IS THE BODY TEXT\",\"link\":\"http:\\/\\/twitter.com\\/2222222222\\/statuses\\/1111111111\",\"postedTime\":\"2017-02-13T18:04:47.000Z\"},\"favoritesCount\":0,\"twitter_entities\":{\"hashtags\":[{\"text\":\"XXXXX\",\"indices\":[0,5]}],\"urls\":[{\"url\":null,\"expanded_url\":null,\"display_url\":\"http://example.com/display_url\",\"indices\":[115,138]}],\"user_mentions\":[],\"symbols\":[]},\"twitter_lang\":\"en\",\"retweetCount\":0,\"gnip\":{\"matching_rules\":[{\"tag\":null,\"id\":4444444444},{\"tag\":null,\"id\":5555555555}],\"urls\":[{\"url\":null,\"expanded_url\":null,\"expanded_status\":200,\"expanded_url_title\":\"URL-TITLE\"}]},\"twitter_filter_level\":\"low\"}"
+          result (gnip/parse-entry input-missing-urls)]
+      
+      ; Plain text of tweet should be extracted BUT should have the sensitive flag set.
+      ; Both the URLs were null, so they shouldn't be included.
+      (is (= (:observations result)
+             [{:type "plaintext" :input-content "THIS IS THE BODY TEXT" :sensitive true}])
+          "When URLs are missing from input, no URL observations are generated.")))
+
