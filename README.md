@@ -16,12 +16,12 @@ To run as an agent, `lein run`. To update the rules in Gnip, which should be one
 
 ## Demo
 
-    time docker-compose -f docker-compose.yml run -w /usr/src/app test lein repl
+    time docker-compose -f docker-compose-demo.yml run -w /usr/src/app test lein repl
 
 ## Config
 
  - `GNIP_RULES_URL` -  e.g. "https://api.gnip.com/accounts/«user»/publishers/twitter/streams/track/prod/rules.json"
- - `POWERTRACK_ENDPOINT` - NB: The hostname should not be included. e.g. "/stream/powertrack/accounts/«user»/publishers/twitter/prod.json"
+ - `POWERTRACK_ENDPOINT` - including any arguments, e.g. "https://gnip-stream.twitter.com/stream/powertrack/accounts/«account»/publishers/twitter/prod.json?backfillMinutes=5"
  - `PERCOLATOR_URL_BASE` e.g. https://percolator.eventdata.crossref.org
  - `JWT_TOKEN`
  - `STATUS_SERVICE_BASE`

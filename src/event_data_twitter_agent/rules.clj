@@ -11,14 +11,7 @@
             [clj-time.core :as clj-time]
             [config.core :refer [env]]
             [event-data-common.status :as status])
-  (:import [java.util.concurrent LinkedBlockingQueue]
-           [com.twitter.hbc.httpclient.auth BasicAuth]
-           [com.twitter.hbc ClientBuilder]
-           [com.twitter.hbc.core Constants HttpConstants]
-           [com.twitter.hbc.core.processor LineStringProcessor]
-           [com.twitter.hbc.core.endpoint RealTimeEnterpriseStreamingEndpoint_v2]
-           [org.crossref.eventdata.twitter CustomUrlStreamingEndpoint]
-           [org.apache.commons.codec.digest DigestUtils])
+  (:import [org.apache.commons.codec.digest DigestUtils])
   (:gen-class))
 
 ; http://support.gnip.com/apis/powertrack2.0/rules.html

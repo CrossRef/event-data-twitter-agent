@@ -1,4 +1,4 @@
-(defproject event-data-twitter-agent "0.1.10"
+(defproject event-data-twitter-agent "0.1.11"
   :description "Event Data Twitter Agent"
   :url "http://eventdata.crossref.org"
   :license {:name "The MIT License (MIT)"
@@ -14,16 +14,8 @@
                  [robert/bruce "0.8.0"]
                  [throttler "1.0.0"]
                  [commons-codec/commons-codec "1.10"]
-                 [event-data-common "0.1.12"]
-                 
-                 ; For HBC
-                 [org.apache.httpcomponents/httpclient "4.2.5"]
-                 [com.google.guava/guava "14.0.1"]
-                 [org.slf4j/slf4j-api "1.6.6"]
-                 [com.twitter/joauth "6.0.2"]
-                 [com.google.code.findbugs/jsr305 "3.0.1"]
-                 [org.mockito/mockito-all "1.8.5"]
-                 [junit/junit "4.8.1"]]
+                 [event-data-common "0.1.14"]
+                 [clj-http "2.3.0"]]
   :main ^:skip-aot event-data-twitter-agent.core
   :java-source-paths ["src-java"]
   :target-path "target/%s"

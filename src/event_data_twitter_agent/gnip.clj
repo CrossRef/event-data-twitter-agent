@@ -1,22 +1,16 @@
 (ns event-data-twitter-agent.gnip
   "Handle Gnip's stream."
-  (:require [clojure.core.async :refer [go-loop thread buffer chan <!! >!! >! <!]]
+  (:require [clojure.core.async :refer [go-loop thread buffer chan <!! >!! >! <! timeout alts!!]]
             [clojure.set :as set]
             [clojure.tools.logging :as log]
-            [clojure.core.async :refer [>!!]]
             [org.httpkit.client :as http]
             [clojure.data.json :as json]
             [clj-time.coerce :as clj-time-coerce]
             [config.core :refer [env]]
-            [event-data-common.status :as status])
-  (:import [java.util.concurrent LinkedBlockingQueue]
-           [com.twitter.hbc.httpclient.auth BasicAuth]
-           [com.twitter.hbc ClientBuilder]
-           [com.twitter.hbc.core Constants HttpConstants]
-           [com.twitter.hbc.core.processor LineStringProcessor]
-           [com.twitter.hbc.core.endpoint RealTimeEnterpriseStreamingEndpoint_v2]
-           [org.crossref.eventdata.twitter CustomUrlStreamingEndpoint]
-           [org.apache.commons.codec.digest DigestUtils])
+            [event-data-common.status :as status]
+            [clj-http.client :as client]
+            [clojure.java.io :as io])
+  (:import [org.apache.commons.codec.digest DigestUtils])
   (:gen-class))
 
 (def source-id "twitter")
@@ -24,7 +18,7 @@
 
 (def unknown-url "http://id.eventdata.crossref.org/unknown")
 
-(def version "0.1.9")
+(def version "0.1.11")
 
 (defn tweet-id-from-url 
   [url]
@@ -77,11 +71,54 @@
         :observations (concat plaintext-observations
                               url-observations)}))))
 
+
+(defn run
+  [c url]
+  "Send parsed events to the chan and block.
+   On exception, log and exit (allowing it to be restarted)"
+  (try
+    (let [response (client/get url
+                    {:as :stream :basic-auth [(:gnip-username env) (:gnip-password env)]})
+          stream (:body response)
+          lines (line-seq (io/reader stream))]
+        (loop [lines lines]
+          (when lines
+            (let [timeout-ch (timeout 10000)
+                  result-ch (thread (try [(or (first lines) :nil) (rest lines)] (catch java.io.IOException ex (do (log/error "Error getting line from PowerTrack:" (.getMessage ex)) nil))))
+                  [[x xs] chosen-ch] (alts!! [timeout-ch result-ch])]
+
+              ; timeout: x is nil, xs is nil
+              ; null from server: x is :nil, xs is rest
+              ; data from serer: x is data, xs is rest
+              (cond
+                ; nil from timeout
+                (nil? x) (.close stream)
+                ; empty string from API, ignore
+                (clojure.string/blank? x) (recur xs)
+                ; :nil, deliberately returned above
+                (= :nil x) (recur xs)
+                :default (let [parsed (parse-entry x)]
+                           (when parsed
+                            (>!! c parsed))
+                             (recur xs)))))))
+    (catch Exception ex (do
+      (log/info (.getMessage ex))))))
+
+(defn run-loop
+  [c url]
+  (loop [timeout-delay 5000]
+    (log/info "Starting / restarting.")
+    (run c url)
+    (log/info "Stopped")
+    (log/info "Try again in" timeout-delay "ms")
+    (Thread/sleep timeout-delay)
+    (recur (* 2 timeout-delay))))
+
 ; Nice big buffer, as they're required for transducers.
 (def action-input-buffer 1000000)
 
 ; Bunch requests up into chunks of this size.
-(def action-chunk-size 100)
+(def action-chunk-size 20)
 
 ; A chan that partitions inputs into large chunks.
 (def action-chan (delay (chan action-input-buffer (partition-all action-chunk-size))))
@@ -92,31 +129,9 @@
   [artifacts input-package-channel]
   ; This will send events onto the action-chan, not onto the Agent Framework-provided input-package-channel.
   ; Both args ignored.
-  (let [q (new LinkedBlockingQueue 1000)
-        c @action-chan
-        client 
-        (-> (new ClientBuilder)
-                   (.hosts Constants/ENTERPRISE_STREAM_HOST_v2)
-                   (.endpoint (new CustomUrlStreamingEndpoint (:powertrack-endpoint env)))
-                   (.authentication (new BasicAuth (:gnip-username env) (:gnip-password env)))
-                   (.processor (new com.twitter.hbc.core.processor.LineStringProcessor q))
-                   (.build))]
-
-        (log/info "Connecting to Gnip...")
-        (.connect client)
-        (log/info "Connected to Gnip.")
-
-        (loop []
-            ; Block on the take.
-            (let [event (.take q)]
-              (try
-                ; parsed can return nil if it recognised and 
-                (when-let [parsed (parse-entry event)]
-                  (>!! c parsed))
-                (catch Exception e
-                    (log/error (.printStackTrace e))
-                    (log/error "Exception parsing Gnip input" event))))
-          (recur))))
+  (let [url (:powertrack-endpoint env)]
+    (log/info "Connect to" url)
+    (run-loop @action-chan url)))
 
 (defn run-send
   "Take chunks of Actions from the action-chan, assemble into Percolator Input Packages, put them on the input-package-channel.
@@ -124,12 +139,15 @@
   [artifacts input-package-channel]
   ; Take chunks of inputs, a few tweets per input bundle.
   ; Gather then into a Page of actions.
+  (log/info "Waiting for chunks of actions from" @action-chan)
   (let [c @action-chan]
     (loop [actions (<!! c)]
+      (log/info "Got a chunk of actions. from " c)
       (let [payload {:pages [{:actions actions}]
                      :agent {:version version}
                      :source-token source-token
                      :source-id source-id}]
         (status/send! "twitter-agent" "send" "input-package" (count actions))
-        (>!! input-package-channel payload))
+        (>!! input-package-channel payload)
+        (clojure.pprint/pprint payload))
       (recur (<!! c)))))
