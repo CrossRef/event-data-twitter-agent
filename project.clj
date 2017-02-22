@@ -17,7 +17,6 @@
                  [event-data-common "0.1.14"]
                  [clj-http "2.3.0"]]
   :main ^:skip-aot event-data-twitter-agent.core
-  :java-source-paths ["src-java"]
   :target-path "target/%s"
   :jvm-opts ["-Duser.timezone=UTC"]
   :profiles {:uberjar {:aot :all}

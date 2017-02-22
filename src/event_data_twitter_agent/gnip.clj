@@ -106,13 +106,13 @@
 
 (defn run-loop
   [c url]
-  (loop [timeout-delay 5000]
+  (loop [timeout-delay 30000]
     (log/info "Starting / restarting.")
     (run c url)
     (log/info "Stopped")
     (log/info "Try again in" timeout-delay "ms")
     (Thread/sleep timeout-delay)
-    (recur (* 2 timeout-delay))))
+    (recur timeout-delay)))
 
 ; Nice big buffer, as they're required for transducers.
 (def action-input-buffer 1000000)
@@ -139,15 +139,15 @@
   [artifacts input-package-channel]
   ; Take chunks of inputs, a few tweets per input bundle.
   ; Gather then into a Page of actions.
-  (log/info "Waiting for chunks of actions from" @action-chan)
+  (log/info "Waiting for chunks of actions...")
   (let [c @action-chan]
     (loop [actions (<!! c)]
-      (log/info "Got a chunk of actions. from " c)
+      (log/info "Got a chunk of" (count actions) "actions")
       (let [payload {:pages [{:actions actions}]
                      :agent {:version version}
                      :source-token source-token
                      :source-id source-id}]
         (status/send! "twitter-agent" "send" "input-package" (count actions))
         (>!! input-package-channel payload)
-        (clojure.pprint/pprint payload))
+        (log/info "Sent a chunk of" (count actions) "actions"))
       (recur (<!! c)))))

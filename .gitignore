@@ -10,5 +10,5 @@ pom.xml.asc
 config
 .DS_Store
 .env
-.m2_cache
+.m2-cache
 
