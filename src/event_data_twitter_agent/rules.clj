@@ -5,10 +5,10 @@
             [clojure.set :as set]
             [clojure.tools.logging :as log]
             [clojure.core.async :refer [>!!]]
-            [org.httpkit.client :as http]
             [clojure.data.json :as json]
             [clj-time.coerce :as clj-time-coerce]
             [clj-time.core :as clj-time]
+            [clj-http.client :as client]
             [config.core :refer [env]]
             [event-data-common.status :as status])
   (:import [org.apache.commons.codec.digest DigestUtils])
@@ -33,7 +33,7 @@
 (defn- fetch-rule-ids-in-play
   "Fetch the current rule ID set from Gnip."
   []
-  (let [fetched @(http/get (:gnip-rules-url env) {:basic-auth [(:gnip-username env) (:gnip-password env)]})
+  (let [fetched (client/get (:gnip-rules-url env) {:basic-auth [(:gnip-username env) (:gnip-password env)]})
         rules (-> fetched :body parse-gnip-ruleset)]
     (set rules)))
 
@@ -52,14 +52,14 @@
 (defn- add-rules
   "Add rules to Gnip."
   [rules]
-  (let [result @(http/post (:gnip-rules-url env) {:body (format-gnip-ruleset rules) :basic-auth [(:gnip-username env) (:gnip-password env)]})]
+  (let [result (client/post (:gnip-rules-url env) {:body (format-gnip-ruleset rules) :basic-auth [(:gnip-username env) (:gnip-password env)]})]
     (when-not (#{200 201} (:status result))
       (log/fatal "Failed to add rules" result))))
 
 (defn- remove-rule-ids
   "Add rules to Gnip."
   [rule-ids]
-  (let [result @(http/post (:gnip-rules-url env) {:body (json/write-str {"rule_ids" rule-ids}) :query-params {"_method" "delete"} :basic-auth [(:gnip-username env) (:gnip-password env)]})]
+  (let [result (client/post (:gnip-rules-url env) {:body (json/write-str {"rule_ids" rule-ids}) :query-params {"_method" "delete"} :basic-auth [(:gnip-username env) (:gnip-password env)]})]
     (when-not (#{200 201} (:status result))
       (log/fatal "Failed to delete rules" result))))
 

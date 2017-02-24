@@ -3,7 +3,6 @@
   (:require [clojure.core.async :refer [go-loop thread buffer chan <!! >!! >! <! timeout alts!!]]
             [clojure.set :as set]
             [clojure.tools.logging :as log]
-            [org.httpkit.client :as http]
             [clojure.data.json :as json]
             [clj-time.coerce :as clj-time-coerce]
             [config.core :refer [env]]
@@ -18,7 +17,7 @@
 
 (def unknown-url "http://id.eventdata.crossref.org/unknown")
 
-(def version "0.1.11")
+(def version "0.1.14")
 
 (defn tweet-id-from-url 
   [url]

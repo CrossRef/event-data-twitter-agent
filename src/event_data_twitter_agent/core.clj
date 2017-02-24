@@ -2,13 +2,11 @@
   (:require [event-data-twitter-agent.gnip :as gnip]
             [org.crossref.event-data-agent-framework.core :as core]
             [event-data-twitter-agent.rules :as rules]
-            
             [config.core :refer [env]]
             [clj-time.coerce :as coerce]
             [clj-time.core :as clj-time]
             [event-data-common.backoff :as backoff]
-            [throttler.core :refer [throttle-fn]]
-            [org.httpkit.client :as client])
+            [throttler.core :refer [throttle-fn]])
   (:import [java.util UUID])
   (:gen-class))
 
