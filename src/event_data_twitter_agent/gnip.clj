@@ -71,6 +71,10 @@
         :observations (concat plaintext-observations
                               url-observations)}))))
 
+(def timeout-duration
+  "Time to wait for a new line before timing out. This should be greater than the rate we expect to get tweets. 
+   Two minutes should cover the worst case."
+  120000)
 
 (defn run
   [c url]
@@ -83,7 +87,7 @@
           lines (line-seq (io/reader stream))]
         (loop [lines lines]
           (when lines
-            (let [timeout-ch (timeout 10000)
+            (let [timeout-ch (timeout timeout-duration)
                   result-ch (thread (try [(or (first lines) :nil) (rest lines)] (catch java.io.IOException ex (do (log/error "Error getting line from PowerTrack:" (.getMessage ex)) nil))))
                   [[x xs] chosen-ch] (alts!! [timeout-ch result-ch])]
 
