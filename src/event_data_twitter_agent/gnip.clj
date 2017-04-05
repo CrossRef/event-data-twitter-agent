@@ -5,6 +5,7 @@
             [clojure.tools.logging :as log]
             [clojure.data.json :as json]
             [clj-time.coerce :as clj-time-coerce]
+            [clj-time.format :as clj-time-format]
             [config.core :refer [env]]
             [event-data-common.status :as status]
             [clj-http.client :as client]
@@ -14,10 +15,16 @@
 
 (def source-id "twitter")
 (def source-token "45a1ef76-4f43-4cdc-9ba8-5a6ad01cc231")
+(def license "https://creativecommons.org/publicdomain/zero/1.0/")
+(def version (System/getProperty "event-data-twitter-agent.version"))
 
 (def unknown-url "http://id.eventdata.crossref.org/unknown")
 
-(def version "0.1.14")
+(def date-format
+  (:date-time-no-ms clj-time-format/formatters))
+
+(def input-date-format
+  (:date-time clj-time-format/formatters))
 
 (defn tweet-id-from-url 
   [url]
@@ -33,7 +40,9 @@
       (do
         (log/error "Gnip error:" (-> parsed :error :message)
         nil))
-      (let [posted-time (:postedTime parsed)
+      (let [; comes in with milliseconds but CED schema prefers non-millisecond version.
+            posted-time-str (:postedTime parsed)
+            posted-time (clj-time-format/parse input-date-format posted-time-str)
         
             ; URL as posted (removing nils).
             expanded-urls (->> parsed :gnip :urls (keep :expanded_url))
@@ -55,17 +64,20 @@
                                      :sensitive false
                                      :input-url url}) urls)
         
-            title (str "Tweet " (tweet-id-from-url url))]
+            internal-id (tweet-id-from-url url)
+            title (str "Tweet " internal-id)]
 
        {:id (DigestUtils/sha1Hex ^String url)
         :url url
-        :occurred-at posted-time
+        :occurred-at (clj-time-format/unparse date-format posted-time)
         :extra {:gnip-matching-rules matching-rules}
         :subj {:title title
-               :issued posted-time
+               ; preserve original time string
+               :issued posted-time-str
                :author {:url (-> parsed :actor :link)}
                :original-tweet-url (-> parsed :object :link)
-               :original-tweet-author (-> parsed :object :actor :link)}
+               :original-tweet-author (-> parsed :object :actor :link)
+               :alternative-id internal-id}
         :relation-type-id "discusses"
         :observations (concat plaintext-observations
                               url-observations)}))))
@@ -148,6 +160,7 @@
       (log/info "Got a chunk of" (count actions) "actions")
       (let [payload {:pages [{:actions actions}]
                      :agent {:version version}
+                     :license license
                      :source-token source-token
                      :source-id source-id}]
         (status/send! "twitter-agent" "send" "input-package" (count actions))

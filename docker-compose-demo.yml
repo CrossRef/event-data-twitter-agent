@@ -12,6 +12,6 @@ services:
      - GNIP_PASSWORD=${GNIP_PASSWORD}
      - GNIP_RULES_URL=
      - PERCOLATOR_URL_BASE=http://localhost:8006
-     - STATUS_URL_BASE=http://localhost:8003
+     - STATUS_SERVICE=http://localhost:8003
     command: "lein test :unit"
 

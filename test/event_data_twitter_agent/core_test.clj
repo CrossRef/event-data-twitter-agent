@@ -25,20 +25,21 @@
       (is (= result
               ; ID should be hash of the Tweet URL.
               {:id expected-id
-               :occurred-at "2017-02-13T18:04:47.000Z"
+                ; Time format with no milliseconds.
+               :occurred-at "2017-02-13T18:04:47Z"
                :url expected-url
                ; Both rule IDs should be extracted.
                :extra {:gnip-matching-rules [4444444444 5555555555]}
                :subj
                 ; Title should include tweet ID but not the text.
                {:title "Tweet 1111111111"
-                ; Issued date should be carried through.
+                ; Issued date should be carried through in original format.
                 :issued "2017-02-13T18:04:47.000Z"
                 ; Author ID URL should be carried through, and twitter id extracted.
                 :author {:url "http://www.twitter.com/2222222222"}
-                :original-tweet-url
-                "http://twitter.com/2222222222/statuses/1111111111"
-                :original-tweet-author nil}
+                :original-tweet-url "http://twitter.com/2222222222/statuses/1111111111"
+                :original-tweet-author nil
+                :alternative-id "1111111111"}
                :relation-type-id "discusses"
                :observations
                ; Plain text of tweet should be extracted BUT should have the sensitive flag set.

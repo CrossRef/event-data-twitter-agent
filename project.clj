@@ -1,4 +1,4 @@
-(defproject event-data-twitter-agent "0.1.14"
+(defproject event-data-twitter-agent "0.1.15"
   :description "Event Data Twitter Agent"
   :url "http://eventdata.crossref.org"
   :license {:name "The MIT License (MIT)"
