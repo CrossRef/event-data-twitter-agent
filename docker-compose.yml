@@ -6,6 +6,6 @@ services:
      - .:/usr/src/app
      - ./.m2-cache:/root/.m2
     environment:
-     - JWT_TOKEN=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0d2l0dGVyIn0.86J0uTAIC7Pn4I7WGdPxNBn2L5hrgGQ_U5DH8wEeutI
+     - TWITTER_JWT_TOKEN=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0d2l0dGVyIn0.86J0uTAIC7Pn4I7WGdPxNBn2L5hrgGQ_U5DH8wEeutI
     command: "lein test :unit"
 

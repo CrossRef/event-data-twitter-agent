@@ -18,11 +18,11 @@ To run as an agent, `lein run`. To update the rules in Gnip, which should be one
 
 ## Config
 
- - `GNIP_RULES_URL` -  e.g. "https://api.gnip.com/accounts/«user»/publishers/twitter/streams/track/prod/rules.json"
- - `POWERTRACK_ENDPOINT` - including any arguments, e.g. "https://gnip-stream.twitter.com/stream/powertrack/accounts/«account»/publishers/twitter/prod.json?backfillMinutes=5"
- - `PERCOLATOR_URL_BASE` e.g. https://percolator.eventdata.crossref.org
- - `JWT_TOKEN`
- - `STATUS_SERVICE_BASE`
- - `GNIP_USERNAME`
- - `GNIP_PASSWORD`
- - `ARTIFACT_BASE`, e.g. https://artifact.eventdata.crossref.org
+ - `GLOBAL_ARTIFACT_URL_BASE`, e.g. https://artifact.eventdata.crossref.org
+ - `TWITTER_GNIP_PASSWORD`
+ - `TWITTER_GNIP_RULES_URL` -  e.g. "https://api.gnip.com/accounts/«user»/publishers/twitter/streams/track/prod/rules.json"
+ - `TWITTER_GNIP_USERNAME`
+ - `TWITTER_JWT`
+ - `TWITTER_POWERTRACK_ENDPOINT` - including any arguments, e.g. "https://gnip-stream.twitter.com/stream/powertrack/accounts/«account»/publishers/twitter/prod.json?backfillMinutes=5"
+ - `GLOBAL_ARTIFACT_URL_BASE`
+ - `GLOBAL_KAFKA_BOOTSTRAP_SERVERS`

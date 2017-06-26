@@ -14,6 +14,7 @@
 (def agent-definition
   {:agent-name "twitter-agent"
    :version gnip/version
+   :jwt (:twitter-jwt env)
    :schedule []
    :runners [{:name "ingest"
               :fun gnip/run-ingest

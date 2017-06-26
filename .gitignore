@@ -11,4 +11,4 @@ config
 .DS_Store
 .env
 .m2-cache
-
+prod.env

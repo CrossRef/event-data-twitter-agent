@@ -92,8 +92,9 @@
   "Send parsed events to the chan and block.
    On exception, log and exit (allowing it to be restarted)"
   (try
-    (let [response (client/get url
-                    {:as :stream :basic-auth [(:gnip-username env) (:gnip-password env)]})
+    (let [response (client/get
+                    url
+                    {:as :stream :basic-auth [(:twitter-gnip-username env) (:twitter-gnip-password env)]})
           stream (:body response)
           lines (line-seq (io/reader stream))]
         (loop [lines lines]
@@ -141,17 +142,17 @@
 (defn run-ingest
   "Run the stream ingestion.
    Blocks forever."
-  [artifacts input-package-channel]
+  [artifacts callback]
   ; This will send events onto the action-chan, not onto the Agent Framework-provided input-package-channel.
   ; Both args ignored.
-  (let [url (:powertrack-endpoint env)]
+  (let [url (:twitter-powertrack-endpoint env)]
     (log/info "Connect to" url)
     (run-loop @action-chan url)))
 
 (defn run-send
-  "Take chunks of Actions from the action-chan, assemble into Percolator Input Packages, put them on the input-package-channel.
+  "Take chunks of Actions from the action-chan, assemble into Percolator Evidence Record, put them on the input-package-channel.
    Blocks forever."
-  [artifacts input-package-channel]
+  [artifacts callback]
   ; Take chunks of inputs, a few tweets per input bundle.
   ; Gather then into a Page of actions.
   (log/info "Waiting for chunks of actions...")
@@ -164,6 +165,6 @@
                      :source-token source-token
                      :source-id source-id}]
         (status/send! "twitter-agent" "send" "input-package" (count actions))
-        (>!! input-package-channel payload)
+        (callback payload)
         (log/info "Sent a chunk of" (count actions) "actions"))
       (recur (<!! c)))))

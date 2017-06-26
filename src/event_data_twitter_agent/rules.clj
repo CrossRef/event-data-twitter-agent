@@ -33,7 +33,7 @@
 (defn- fetch-rule-ids-in-play
   "Fetch the current rule ID set from Gnip."
   []
-  (let [fetched (client/get (:gnip-rules-url env) {:basic-auth [(:gnip-username env) (:gnip-password env)]})
+  (let [fetched (client/get (:twitter-gnip-rules-url env) {:basic-auth [(:twitter-gnip-username env) (:twitter-gnip-password env)]})
         rules (-> fetched :body parse-gnip-ruleset)]
     (set rules)))
 
@@ -52,14 +52,14 @@
 (defn- add-rules
   "Add rules to Gnip."
   [rules]
-  (let [result (client/post (:gnip-rules-url env) {:body (format-gnip-ruleset rules) :basic-auth [(:gnip-username env) (:gnip-password env)]})]
+  (let [result (client/post (:twitter-gnip-rules-url env) {:body (format-gnip-ruleset rules) :basic-auth [(:twitter-gnip-username env) (:twitter-gnip-password env)]})]
     (when-not (#{200 201} (:status result))
       (log/fatal "Failed to add rules" result))))
 
 (defn- remove-rule-ids
   "Add rules to Gnip."
   [rule-ids]
-  (let [result (client/post (:gnip-rules-url env) {:body (json/write-str {"rule_ids" rule-ids}) :query-params {"_method" "delete"} :basic-auth [(:gnip-username env) (:gnip-password env)]})]
+  (let [result (client/post (:twitter-gnip-rules-url env) {:body (json/write-str {"rule_ids" rule-ids}) :query-params {"_method" "delete"} :basic-auth [(:twitter-gnip-username env) (:twitter-gnip-password env)]})]
     (when-not (#{200 201} (:status result))
       (log/fatal "Failed to delete rules" result))))
 
@@ -107,6 +107,7 @@
     (log/info "Add" (count compacted-rules) "new rules")
     (add-rules compacted-rules)
     (log/info "Remove " (count old-rule-ids) "old rules")
+    (log/info "Old Rule IDs: " old-rule-ids)
     (doseq [chunk (partition-all 1000 old-rule-ids)]
       (log/info "Done chunk of " (count chunk))
       (remove-rule-ids chunk))))
